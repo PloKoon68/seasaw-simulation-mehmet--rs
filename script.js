@@ -12,7 +12,6 @@ const percentage_to_px = (percentage) => {
     return percentage * LENGTH / 100;
 }
 
-
 const pfillRectWith = (x, w, y, h, color) => {
     ctx.fillStyle = color;
     ctx.fillRect(percentage_to_px(x), percentage_to_px(y), percentage_to_px(w), percentage_to_px(h));
@@ -30,15 +29,6 @@ const pdrawShape = (coordinates, color) => {
     ctx.fill();  
 }
 
-// Draw ground
-pfillRectWith(0, 100, 80, 20, '#0d8a41ff')
-
-//draw pivot triangle
-pdrawShape([[50, 70], [45, 80], [55, 80]], '#5d6767ff');
-
-//draw seasaw
-pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
-
 function pdrawBall(cx, cy, r, color) {
     ctx.beginPath();           
     ctx.arc(percentage_to_px(cx), percentage_to_px(cy), percentage_to_px(r), 0, Math.PI * 2); // 2pi for full circle
@@ -47,7 +37,49 @@ function pdrawBall(cx, cy, r, color) {
     ctx.closePath();
 }
 
-pdrawBall(30, 30, 5, 'purple');
+
+let ball = {
+    r: 5,
+    color: '#0e1575ff',
+    visible: false
+};
+
+// Draw function
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // draw ground
+    pfillRectWith(0, 100, 80, 20, '#0d8a41ff');
+
+    // draw pivot triangle
+    pdrawShape([[50, 70], [45, 80], [55, 80]], '#5d6767ff');
+
+    // draw seesaw
+    pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
+
+    // draw ball if visible
+    if (ball.visible) {
+        pdrawBall(ball.x, ball.y, ball.r, ball.color);
+    }
+}
+
+// ball on mouse cursor
+canvas.addEventListener('mousemove', (evt) => {
+    const rect = canvas.getBoundingClientRect();
+    ball.x = Math.min(92, Math.max(8, ((evt.clientX - rect.left) / rect.width) * 100));
+    ball.y = 10;
+    ball.visible = true;
+    draw();
+});
+
+// remove ball when leaves canvas
+canvas.addEventListener('mouseleave', () => {
+    ball.visible = false;
+    draw();
+});
+
+
+draw();
 
 
 /*
