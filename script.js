@@ -39,33 +39,15 @@ pdrawShape([[50, 70], [45, 80], [55, 80]], '#5d6767ff');
 //draw seasaw
 pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
 
-
-function drawBall(x, y, radius, color, weight) {
-    // Shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, 1);
-    ctx.fill();
-    
-    // Ball
+function pdrawBall(cx, cy, r, color) {
+    ctx.beginPath();           
+    ctx.arc(percentage_to_px(cx), percentage_to_px(cy), percentage_to_px(r), 0, Math.PI * 2); // 2pi for full circle
     ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Outline
-    ctx.strokeStyle = '#2c3e50';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Weight label
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(weight + 'kg', x, y);
+    ctx.closePath();
 }
 
+pdrawBall(30, 30, 5, 'purple');
 
 
 /*
