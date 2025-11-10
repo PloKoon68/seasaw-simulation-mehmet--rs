@@ -66,6 +66,11 @@ function pdrawBall(ball) {
 
 let balls = []
 
+function distanceToCenter(coordinate) {
+    return Math.sqrt((coordinate[0] - 50)**2 + (coordinate[1] - 50)**2)
+}
+
+
 function randomDarkColor() {
     let r, g, b;
     do {
@@ -184,8 +189,19 @@ function startFalling(ball) {
             ball.falling = false;
             worker.terminate(); 
 
-            if(ball.x >= 50) measures.right_side.weight += ball.weight;
-            else measures.left_side.weight += ball.weight;
+
+            //torque calculation: d * w
+            const d = distanceToCenter([ball.x, ball.y]);
+            const torque = d - ball.weight;
+            
+            if(ball.x >= 50) {
+                measures.right_side.weight += ball.weight;
+                measures.right_side.torque += torque;
+            }
+            else {
+                measures.left_side.weight += ball.weight;
+                measures.left_side.torque += torque;
+            }
             console.log("w: ", measures)
         }
     };
