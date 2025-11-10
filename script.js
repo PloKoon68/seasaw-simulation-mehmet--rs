@@ -101,26 +101,23 @@ function create_new_ball(event) {
 }
 
 
-function drawSeesaw(angleDegrees) {
+function pDrawSeesaw(angleDegrees) {
     const pivotX = percentage_to_px(50);
-    const pivotY = percentage_to_px(70);
+    const pivotY = percentage_to_px(50);
     const angleRadians = angleDegrees * Math.PI / 180;
 
     ctx.save(); // save current canvas state
 
-    // Move origin to pivot point
+    // Move origin to pivot point (center of canvas)
     ctx.translate(pivotX, pivotY);
 
     // Rotate around pivot
-    ctx.rotate(-angleRadians); // negative for clockwise rotation
+    ctx.rotate(angleRadians); // positive meaning right side heavier
 
-    // Draw seesaw relative to new origin
-    // Note: the seesaw coordinates are now relative to the pivot
-//        pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
 
     pdrawShape([
-        [10 - 50, 4], [90 - 50, 4],
-        [90 - 50, -1], [10 - 50, -1]
+        [-PLANK_LENGTH/2, PLANK_WIDTH/2], [PLANK_LENGTH/2, PLANK_WIDTH/2],
+        [PLANK_LENGTH/2, -PLANK_WIDTH/2], [-PLANK_LENGTH/2, -PLANK_WIDTH/2]
     ], '#8f5509ff');
 
     ctx.restore(); // restore to unrotated state
@@ -148,7 +145,7 @@ function draw() {
     pdrawShape([[50, 50], [45, 60], [55, 60]], '#5d6767ff');
 
     // draw seesaw plank
-    pdrawShape([[50-PLANK_LENGTH/2, 50-PLANK_WIDTH/2], [50+PLANK_LENGTH/2, 50-PLANK_WIDTH/2], [50+PLANK_LENGTH/2, 50+PLANK_WIDTH/2], [50-PLANK_LENGTH/2, 50+PLANK_WIDTH/2]], '#8f5509ff');
+    pDrawSeesaw(10);
 
     // draw ball if visible
     let lastBallIndex = balls.length-1
