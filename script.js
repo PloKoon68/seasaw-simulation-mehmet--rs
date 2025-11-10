@@ -32,11 +32,17 @@ const pdrawShape = (coordinates, color) => {
     ctx.fill();  
 }
 
-function pdrawBall(cx, cy, r, color) {
+function pdrawBall(ball) {
     ctx.beginPath();           
-    ctx.arc(percentage_to_px(cx), percentage_to_px(cy), percentage_to_px(r), 0, Math.PI * 2); // 2pi for full circle
-    ctx.fillStyle = color;
+
+    ctx.arc(percentage_to_px(ball.x), percentage_to_px(ball.y), percentage_to_px(ball.r), 0, Math.PI * 2); // 2pi for full circle
+    ctx.fillStyle = ball.color;
     ctx.fill();
+
+    ctx.fillStyle = 'white';
+    ctx.font = '11px Arial';
+    ctx.fillText( ball.weight+'kg', percentage_to_px(ball.x-2), percentage_to_px(ball.y+0.7));
+
     ctx.closePath();
 }
 
@@ -44,26 +50,38 @@ function pdrawBall(cx, cy, r, color) {
 
 let balls = []
 
+function randomDarkColor() {
+    let r, g, b;
+    do {
+        r = Math.floor(Math.random() * 256);
+        g = Math.floor(Math.random() * 256);
+        b = Math.floor(Math.random() * 256);
+    } while ((r + g + b) / 3 > 180); // keep looping if it's too bright
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+const initialWeight = Math.floor(Math.random() * 10) + 1
 balls.push({ 
     x: 0,
     y: 0,
-    r: 5,
-    color: '#0e1575ff',
+    r: 4 + initialWeight/3,
+    color:  randomDarkColor(),
     visible: false,
     falling: false,
     fallSpeed: 0,
     targetX: null,  
     targetY: 65,
-    weight: 2
+    weight: initialWeight
 }); 
-
+console.log("j: ", 43.)
 function create_new_ball(event) {
     const weight = Math.floor(Math.random() * 10) + 1;
     balls.push({ 
         x: Math.min(92, Math.max(8, ((event.clientX - rect.left) / rect.width) * 100)),
         y: 10,
         r: 4 + weight/3,
-        color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0') + 'ff',
+        color:  randomDarkColor(),
         visible: false,
         falling: false,
         fallSpeed: 0,
@@ -90,9 +108,9 @@ function draw() {
     // draw ball if visible
     let lastBallIndex = balls.length-1
     for(let i = 0; i < lastBallIndex; i++) {
-        pdrawBall(balls[i].x, balls[i].y, balls[i].r, balls[i].color);
+        pdrawBall(balls[i]);
     }
-    if(balls[lastBallIndex].visible) pdrawBall(balls[lastBallIndex].x, balls[lastBallIndex].y, balls[lastBallIndex].r, balls[lastBallIndex].color);
+    if(balls[lastBallIndex].visible) pdrawBall(balls[lastBallIndex]);
 }
 
 function wait(ms) {
