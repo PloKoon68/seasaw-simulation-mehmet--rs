@@ -1,6 +1,8 @@
 const canvas = document.getElementById('seasawCnvs');  //main canvas element
 
 //note: this system is assumed to have a square shape canvas (width=height)
+//also, fror ease of use, percentage of width-height is used for location unit 
+//instead of raw pixel
 const LENGTH = canvas.height
 
 const ctx = canvas.getContext('2d');   //for drawing objects in canvas
@@ -38,11 +40,19 @@ function pdrawBall(cx, cy, r, color) {
 }
 
 
-let ball = {
+
+let balls = []
+balls.push({
+    x: 0,
+    y: 0,
     r: 5,
     color: '#0e1575ff',
-    visible: false
-};
+    visible: false,
+    falling: false,
+    fallSpeed: 0,
+    targetX: null,  
+    targetY: 70
+}); 
 
 // Draw function
 function draw() {
@@ -58,23 +68,70 @@ function draw() {
     pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
 
     // draw ball if visible
-    if (ball.visible) {
-        pdrawBall(ball.x, ball.y, ball.r, ball.color);
+    let lastBallIndex = balls.length
+    for(let i = 0; i < lastBallIndex; i++) {
+        if(balls[i].falling) {
+            console.log("falling: ")
+            fall(balls[i])    
+        }
+        pdrawBall(balls[i].x, balls[i].y, balls[i].r, balls[i].color);
+    }
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fall(ball) {
+    if (ball.y < ball.targetY) {
+        ball.y += ball.fallSpeed;
+        ball.fallSpeed += 0.01; // gravity acceleration
+        await wait(100);
+
+        draw();
+    } else {
+        ball.y = ball.targetY;
+        ball.falling = false;
+        ball.fallSpeed = 0;
+        draw();
     }
 }
 
 // ball on mouse cursor
-canvas.addEventListener('mousemove', (evt) => {
+canvas.addEventListener('mousemove', (event) => {
     const rect = canvas.getBoundingClientRect();
-    ball.x = Math.min(92, Math.max(8, ((evt.clientX - rect.left) / rect.width) * 100));
-    ball.y = 10;
-    ball.visible = true;
+    let lastBallIndex = balls.length-1
+    balls[lastBallIndex].x = Math.min(92, Math.max(8, ((event.clientX - rect.left) / rect.width) * 100));
+    balls[lastBallIndex].y = 10;
+    balls[lastBallIndex].visible = true;
     draw();
 });
 
 // remove ball when leaves canvas
 canvas.addEventListener('mouseleave', () => {
-    ball.visible = false;
+    balls[balls.length-1].visible = false;
+    draw();
+});
+
+
+// drop the ball on click
+canvas.addEventListener('click', (event) => {
+    balls[balls.length-1].falling = true;
+    console.log(balls.length-1, " is falling")
+    console.log(balls)
+    balls.push({
+        x: event.clientX,
+        y: event.clientY,
+        r: 5,
+        color: '#0e1575ff',
+        visible: false,
+        falling: false,
+        fallSpeed: 0,
+        targetX: null,  
+        targetY: 70,
+        fallSpeed: 0
+    })
+
     draw();
 });
 
