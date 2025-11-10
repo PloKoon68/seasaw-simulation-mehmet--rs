@@ -1,5 +1,5 @@
 onmessage = function(e) {
-    let { y, targetY, weight } = e.data;
+    let { y, targetY } = e.data;
 
     let fallSpeed = 0;
     let acceleration = 0.1;

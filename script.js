@@ -3,11 +3,16 @@ const canvas = document.getElementById('seasawCnvs');  //main canvas element
 //note: this system is assumed to have a square shape canvas (width=height)
 //also, fror ease of use, percentage of width-height is used for location unit 
 //instead of raw pixel
-const LENGTH = canvas.height
 
 const ctx = canvas.getContext('2d');   //for drawing objects in canvas
 const rect = canvas.getBoundingClientRect();   //for boundary px
 
+const LENGTH = canvas.width
+
+const PLANK_LENGTH = 80;  //!!! CANVAS LENGTH IS 500px. 80% is 400px for seasaw plank, as expected in requirements.
+const PLANK_WIDTH = 5;
+
+const DROP_BALL_HORIZONTAL_LIMIT = 10  // if mouse is outside 10 percent to the side of canvas horizontal line, it is not droppable
 
 
 //p prefix means percentage, instead of raw pixels
@@ -41,8 +46,8 @@ function pdrawBall(ball) {
 
     ctx.fillStyle = 'white';
     ctx.font = '11px Arial';
-    ctx.textAlign = 'center';     // horizontally center
-    ctx.textBaseline = 'middle';  // vertically center
+    ctx.textAlign = 'center';     
+    ctx.textBaseline = 'middle';  
     ctx.fillText( ball.weight+'kg', percentage_to_px(ball.x), percentage_to_px(ball.y));
 
     ctx.closePath();
@@ -64,34 +69,72 @@ function randomDarkColor() {
 }
 
 const initialWeight = Math.floor(Math.random() * 10) + 1
+const initialRadius = 4 + initialWeight/3
 balls.push({ 
     x: 0,
     y: 0,
-    r: 4 + initialWeight/3,
+    r: initialRadius,
     color:  randomDarkColor(),
     visible: false,
     falling: false,
     fallSpeed: 0,
     targetX: null,  
-    targetY: 65,
+    targetY: 50 - initialRadius,
     weight: initialWeight
 }); 
 
 function create_new_ball(event) {
     const weight = Math.floor(Math.random() * 10) + 1;
+    const r = 4 + weight/3;
     balls.push({ 
-        x: Math.min(92, Math.max(8, ((event.clientX - rect.left) / rect.width) * 100)),
+        x: Math.min(50+PLANK_LENGTH/2, Math.max(50-PLANK_LENGTH/2, ((event.clientX - rect.left) / rect.width) * 100)),
         y: 10,
-        r: 4 + weight/3,
+        r: r,
         color:  randomDarkColor(),
-        visible: false,
+        visible: true,
         falling: false,
         fallSpeed: 0,
         targetX: null,  
-        targetY: 65,
+        targetY: 50 - r,
         weight: weight
     }); 
 }
+
+
+function drawSeesaw(angleDegrees) {
+    const pivotX = percentage_to_px(50);
+    const pivotY = percentage_to_px(70);
+    const angleRadians = angleDegrees * Math.PI / 180;
+
+    ctx.save(); // save current canvas state
+
+    // Move origin to pivot point
+    ctx.translate(pivotX, pivotY);
+
+    // Rotate around pivot
+    ctx.rotate(-angleRadians); // negative for clockwise rotation
+
+    // Draw seesaw relative to new origin
+    // Note: the seesaw coordinates are now relative to the pivot
+//        pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
+
+    pdrawShape([
+        [10 - 50, 4], [90 - 50, 4],
+        [90 - 50, -1], [10 - 50, -1]
+    ], '#8f5509ff');
+
+    ctx.restore(); // restore to unrotated state
+}
+
+const rotateButton = document.querySelector('.pause-button');
+function rotateSeesaw() {
+    drawSeesaw(15); // example: rotate 15 degrees
+
+    console.log("Button clicked!");
+}
+rotateButton.addEventListener('click', rotateSeesaw);
+
+
 
 
 // Draw function
@@ -99,13 +142,13 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // draw ground
-    pfillRectWith(0, 100, 80, 20, '#0d8a41ff');
+    pfillRectWith(0, 100, 60, 40, '#0d8a41ff');
 
-    // draw pivot triangle
-    pdrawShape([[50, 70], [45, 80], [55, 80]], '#5d6767ff');
+    // draw pivot triangle at the center (50% width, 50% height)
+    pdrawShape([[50, 50], [45, 60], [55, 60]], '#5d6767ff');
 
-    // draw seesaw
-    pdrawShape([[10, 74], [90, 74], [90, 69], [10, 69]], '#8f5509ff');
+    // draw seesaw plank
+    pdrawShape([[50-PLANK_LENGTH/2, 50-PLANK_WIDTH/2], [50+PLANK_LENGTH/2, 50-PLANK_WIDTH/2], [50+PLANK_LENGTH/2, 50+PLANK_WIDTH/2], [50-PLANK_LENGTH/2, 50+PLANK_WIDTH/2]], '#8f5509ff');
 
     // draw ball if visible
     let lastBallIndex = balls.length-1
@@ -143,7 +186,7 @@ function startFalling(ball) {
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {
     let lastBallIndex = balls.length-1
-    balls[lastBallIndex].x = Math.min(92, Math.max(8, ((event.clientX - rect.left) / rect.width) * 100));
+    balls[lastBallIndex].x = Math.min(50+PLANK_LENGTH/2, Math.max(50-PLANK_LENGTH/2, ((event.clientX - rect.left) / rect.width) * 100));
     balls[lastBallIndex].y = 10;
     balls[lastBallIndex].visible = true;
     draw();
@@ -161,10 +204,8 @@ canvas.addEventListener('click', (event) => {
     balls[balls.length-1].falling = true;
 
     startFalling(balls[balls.length-1])
-
     create_new_ball(event)
-
-
+    console.log("added ball: ", balls)
     draw();
 });
 
