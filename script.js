@@ -62,11 +62,52 @@ function pdrawBall(ball) {
     ctx.closePath();
 }
 
+function pDrawSeesaw(angleDegrees) {
+    const pivotX = percentage_to_px(50);
+    const pivotY = percentage_to_px(50);
+    const angleRadians = angleDegrees * Math.PI / 180;
+
+    ctx.save(); // save current canvas state
+
+    // Move origin to pivot point (center of canvas)
+    ctx.translate(pivotX, pivotY);
+
+    // Rotate around pivot
+    ctx.rotate(angleRadians); // positive meaning right side heavier
+
+
+    pdrawShape([
+        [-PLANK_LENGTH/2, PLANK_WIDTH/2], [PLANK_LENGTH/2, PLANK_WIDTH/2],
+        [PLANK_LENGTH/2, -PLANK_WIDTH/2], [-PLANK_LENGTH/2, -PLANK_WIDTH/2]
+    ], '#8f5509ff');
+
+    ctx.restore(); // restore to unrotated state
+}
+
+
+
+///////////////////////
+function calculateDroppedBallPosition(ball, angle) {    // called for each ball when the rotation thread updates the angle
+    const radian = angle * Math.PI / 180;
+    const ballCenterDistanceFromPlank = PLANK_WIDTH/2 + ball.r
+
+    const dy = Math.sin(radian) * ball.distanceToCenter - Math.cos(radian) * ballCenterDistanceFromPlank
+    ball.y = 50 + dy
+    const dx = Math.cos(radian) * ball.distanceToCenter + Math.sin(radian) * ballCenterDistanceFromPlank
+    ball.x = 50 + dx
+
+}
+
+
+
+///////////////////////
+
 
 
 let balls = []
 
 function distanceToCenter(coordinate) {
+//    return Math.sqrt((percentage_to_px(coordinate[0]) - percentage_to_px(50))**2 + (percentage_to_px(coordinate[1]) - percentage_to_px(50))**2)
     return Math.sqrt((coordinate[0] - 50)**2 + (coordinate[1] - 50)**2)
 }
 
@@ -92,8 +133,9 @@ balls.push({
     visible: false,
     falling: false,
     targetX: null,  
-    targetY: 50 - initialRadius,
-    weight: initialWeight
+    targetY: 50 - initialRadius - PLANK_WIDTH/2,
+    weight: initialWeight,
+    distanceToCenter: null
 }); 
 
 function create_new_ball(event) {
@@ -107,37 +149,17 @@ function create_new_ball(event) {
         visible: true,
         falling: false,
         targetX: null,  
-        targetY: 50 - r,
-        weight: weight
+        targetY: 50 - r - PLANK_WIDTH/2,
+        weight: weight,
+        distanceToCenter: null
     }); 
 }
 
 
-function pDrawSeesaw(angleDegrees) {
-    const pivotX = percentage_to_px(50);
-    const pivotY = percentage_to_px(50);
-    const angleRadians = angleDegrees * Math.PI / 180;
-
-    ctx.save(); // save current canvas state
-
-    // Move origin to pivot point (center of canvas)
-    ctx.translate(pivotX, pivotY);
-
-    // Rotate around pivot
-    ctx.rotate(angleRadians); // positive meaning right side heavier
-
-
-    pdrawShape([
-        [-PLANK_LENGTH/2, PLANK_WIDTH/2], [PLANK_LENGTH/2, PLANK_WIDTH/2],
-        [PLANK_LENGTH/2, -PLANK_WIDTH/2], [-PLANK_LENGTH/2, -PLANK_WIDTH/2]
-    ], '#8f5509ff');
-
-    ctx.restore(); // restore to unrotated state
-}
 
 const rotateButton = document.querySelector('.pause-button');
 function rotateSeesaw() {
-    pDrawSeesaw(15); // example: rotate 15 degrees
+    pDrawSeesaw(20); // example: rotate 15 degrees
 
     console.log("Button clicked!");
 }
@@ -159,16 +181,12 @@ function draw() {
     // draw seesaw plank
     pDrawSeesaw(measures.angle);
 
-    // draw ball if visible
+    // draw balls
     let lastBallIndex = balls.length-1
     for(let i = 0; i < lastBallIndex; i++) {
         pdrawBall(balls[i]);
     }
     if(balls[lastBallIndex].visible) pdrawBall(balls[lastBallIndex]);
-}
-
-function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 
@@ -185,13 +203,16 @@ function startFalling(ball) {
         ball.y = e.data.y; // update ball position
         draw();             
         if (e.data.y === ball.targetY) {   //ball reached target, its terminate thread
+            ball.distanceToCenter = distanceToCenter([ball.x, ball.y])
+
             ball.falling = false;
             worker.terminate(); 
 
 
             //torque calculation: d * w
             const d = distanceToCenter([ball.x, ball.y]);
-            const torque = d - ball.weight;
+            ball.distanceToCenter = d;
+            const torque = d * ball.weight;
             
             if(ball.x >= 50) {
                 measures.right_side.weight += ball.weight;
@@ -203,10 +224,48 @@ function startFalling(ball) {
             }
 
             measures.angle = Math.max(-30, Math.min(30, (measures.right_side.torque - measures.left_side.torque) / 10));
-        console.log("measures became: ", measures)
+            draw()
         }
     };
 }
+
+/*
+function startRotation(ball) {
+    const worker = new Worker('rotationThread.js');
+    worker.postMessage({
+        y: ball.y,
+        targetY: ball.targetY,
+        weight: ball.weight
+    });
+
+    worker.onmessage = function(e) {
+        ball.y = e.data.y; // update ball position
+        draw();             
+        if (e.data.y === ball.targetY) {   //ball reached target, its terminate thread
+            ball.falling = false;
+            worker.terminate(); 
+
+
+            //torque calculation: d * w
+            const d = distanceToCenter([ball.x, ball.y]);
+            const torque = d * ball.weight;
+            
+            if(ball.x >= 50) {
+                measures.right_side.weight += ball.weight;
+                measures.right_side.torque += torque;
+            }
+            else {
+                measures.left_side.weight += ball.weight;
+                measures.left_side.torque += torque;
+            }
+
+            measures.angle = Math.max(-30, Math.min(30, (measures.right_side.torque - measures.left_side.torque) / 10));
+            console.log(measures.angle)
+            draw()
+        }
+    };
+}
+*/
 
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {
@@ -230,7 +289,7 @@ canvas.addEventListener('click', (event) => {
 
     startFalling(balls[balls.length-1])
     create_new_ball(event)
-    console.log("added ball: ", balls)
+    //startRotation();
     draw();
 });
 

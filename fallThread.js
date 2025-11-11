@@ -2,8 +2,7 @@ onmessage = function(e) {
     let { y, targetY } = e.data;
 
     let fallSpeed = 0;
-    let acceleration = 0.1;
-
+    let acceleration = 0.1;   //gravity acceleration
     function wait(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
