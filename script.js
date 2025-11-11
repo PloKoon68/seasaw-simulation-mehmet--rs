@@ -16,12 +16,10 @@ const DROP_BALL_HORIZONTAL_LIMIT = 10  // if mouse is outside 10 percent to the 
 
 
 let measures = {
-    left_side: {weight: 0, torque: 0},
-    right_side: {weight: 0, torque: 0},
+    left_side: {weight: 0, rawTorque: 0},
+    right_side: {weight: 0, rawTorque: 0},
     angle: 0
 }
-let left_values = {weight: 0, torque: 0};
-let right_values = {weight: 0, torque: 0};
 
 
 //p prefix means percentage, instead of raw pixels
@@ -208,64 +206,53 @@ function startFalling(ball) {
             ball.falling = false;
             worker.terminate(); 
 
-
-            //torque calculation: d * w
-            const d = distanceToCenter([ball.x, ball.y]);
-            ball.distanceToCenter = d;
-            const torque = d * ball.weight;
-            
-            if(ball.x >= 50) {
-                measures.right_side.weight += ball.weight;
-                measures.right_side.torque += torque;
-            }
-            else {
-                measures.left_side.weight += ball.weight;
-                measures.left_side.torque += torque;
-            }
-
-            measures.angle = Math.max(-30, Math.min(30, (measures.right_side.torque - measures.left_side.torque) / 10));
-            draw()
+            endFalling(ball);
         }
     };
 }
+function endFalling(ball) {
+    //torque calculation: d * w
+    const d = distanceToCenter([ball.x, ball.y]);
+    ball.distanceToCenter = d;
+    const torque = d * ball.weight;
+    
+    if(ball.x >= 50) {
+        measures.right_side.weight += ball.weight;
+        measures.right_side.rawTorque += torque;
+    }
+    else {
+        measures.left_side.weight += ball.weight;
+        measures.left_side.rawTorque += torque;
+    }
+    //measures.angle = Math.max(-30, Math.min(30, (measures.right_side.torque - measures.left_side.torque) / 10));
 
-/*
-function startRotation(ball) {
-    const worker = new Worker('rotationThread.js');
-    worker.postMessage({
-        y: ball.y,
-        targetY: ball.targetY,
-        weight: ball.weight
+
+    //start rotating
+    draw()
+    startRotation()
+}
+
+
+let rotationThread;
+function startRotation() {
+    rotationThread = new Worker('rotationThread.js');
+
+    const distancesToCenter = balls.map((ball) => ball.distanceToCenter)
+    distancesToCenter.pop()
+
+    rotationThread.postMessage({
+        measures: measures,
+        balls: balls,
+        length: PLANK_LENGTH/2
     });
 
-    worker.onmessage = function(e) {
-        ball.y = e.data.y; // update ball position
+    rotationThread.onmessage = function(e) {
+        measures.angle = e.data.angle; // update ball position
         draw();             
-        if (e.data.y === ball.targetY) {   //ball reached target, its terminate thread
-            ball.falling = false;
-            worker.terminate(); 
-
-
-            //torque calculation: d * w
-            const d = distanceToCenter([ball.x, ball.y]);
-            const torque = d * ball.weight;
-            
-            if(ball.x >= 50) {
-                measures.right_side.weight += ball.weight;
-                measures.right_side.torque += torque;
-            }
-            else {
-                measures.left_side.weight += ball.weight;
-                measures.left_side.torque += torque;
-            }
-
-            measures.angle = Math.max(-30, Math.min(30, (measures.right_side.torque - measures.left_side.torque) / 10));
-            console.log(measures.angle)
-            draw()
-        }
     };
 }
-*/
+
+
 
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {

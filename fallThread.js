@@ -2,18 +2,19 @@ onmessage = function(e) {
     let { y, targetY } = e.data;
 
     let fallSpeed = 0;
-    let acceleration = 0.1;   //gravity acceleration
+    let gravityAcceleration = 10;   //gravity acceleration
+    let loopPeriod = 20;
     function wait(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     async function loop() {
 
         while (y < targetY) {
-            fallSpeed += acceleration;
+            fallSpeed += gravityAcceleration * (loopPeriod/1000);
             y += fallSpeed;
             if(y > targetY) y = targetY
             postMessage({ y }); // send new vertical position to main thread
-            await wait(20)
+            await wait(loopPeriod)
         }   
         postMessage({ y: Math.round(targetY) }); 
 
