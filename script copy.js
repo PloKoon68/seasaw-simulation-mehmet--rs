@@ -20,8 +20,9 @@ let measures = {
     right_side: {weight: 0, rawTorque: 0},
     angle: 0,
     angularAcceleration: 0,
-    angularVelocity: 0
+    angularVelocity: 0,
 }
+
 
 //p prefix means percentage, instead of raw pixels
 const percentage_to_px = (percentage) => {
@@ -86,31 +87,24 @@ function pDrawSeesaw(angleDegrees) {
 
 
 ///////////////////////
-
-
-function calculateBalltargetY(ball, angle) {    // called for each ball when the rotation thread updates the angle
+function updateDroppedBallPosition(ball, angle) {    // called for each ball when the rotation thread updates the angle
     const radian = angle * Math.PI / 180;
-    const newTargetY = (Math.tan(radian) * (ball.x - 50)) + (-(PLANK_WIDTH/2)/Math.cos(radian) - ball.r) + 50
+    const ballCenterDistanceFromPlank = PLANK_WIDTH/2 + ball.r
+
+    const dy = Math.sin(radian) * ball.distanceToCenter - Math.cos(radian) * ballCenterDistanceFromPlank
+    ball.y = 50 + dy
+    const dx = Math.cos(radian) * ball.distanceToCenter + Math.sin(radian) * ballCenterDistanceFromPlank
+    ball.x = 50 + dx
+
+}
+function calculateHoldingBalltargetY(ball, angle) {    // called for each ball when the rotation thread updates the angle
+    const radian = angle * Math.PI / 180;
+    console.log("ballx: ", ball, angle)
+    const newTargetY = (Math.tan(radian) * (ball.x - 50)) + 50
+    console.log("dolayısıyla y: ", newTargetY)
     ball.targetY = newTargetY
 }
 
-function updateDroppedBallPositionY(ball, angle) {    // called for each ball when the rotation thread updates the angle
-    const radian = angle * Math.PI / 180;
-
-    console.log("geldi: ", ball.d * Math.cos(radian))
-    const newY = ball.d * Math.sin(radian) - (ball.r + PLANK_WIDTH/2) * Math.cos(radian) + 50;
-    const newX = ball.d * Math.cos(radian) + (ball.r + PLANK_WIDTH/2) * Math.sin(radian) + 50;
-    console.log("n: ", ball.d, newY)
-
-    
-    ball.y = newY
-    ball.x = newX
-}
-
-function horizontalDistanceToPivot(ball) {
-    const radian = measures.angle * Math.PI / 180;
-    return ball.d * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)
-}
 
 
 
@@ -120,15 +114,9 @@ function horizontalDistanceToPivot(ball) {
 
 let balls = []
 
-function distanceToCenterFromBallTouchPoint(bx, by, r) {
-    const radian = measures.angle * Math.PI / 180   // get the current angle
-
-    const dPerpendicularToPlankFromCenter = r + PLANK_WIDTH/2
-    const dx = bx - dPerpendicularToPlankFromCenter * Math.sin(radian);
-    const dy = by + dPerpendicularToPlankFromCenter * Math.cos(radian);   
-    const d = Math.sqrt((dx - 50)**2 + (dy - 50)**2);  //returns positive anyway
-
-    return dx < 50? -d: d;   //if on the left side of the plank, return negative d
+function distanceToCenter(coordinate) {
+//    return Math.sqrt((percentage_to_px(coordinate[0]) - percentage_to_px(50))**2 + (percentage_to_px(coordinate[1]) - percentage_to_px(50))**2)
+    return Math.sqrt((coordinate[0] - 50)**2 + (coordinate[1] - 50)**2)
 }
 
 
@@ -156,22 +144,17 @@ const initialBall = {
     targetX: null,  
     targetY: null,
     weight: initialWeight,
-    d: null,
-    onRightSide: null
+    distanceToCenter: null
 }
-
-calculateBalltargetY(initialBall, measures.angle)
+calculateHoldingBalltargetY(initialBall, measures.angle)
 balls.push(initialBall); 
 
 function create_new_ball(event) {
     const weight = Math.floor(Math.random() * 10) + 1;
     const r = 4 + weight/3;
 
-    const radian = measures.angle * Math.PI / 180
-    const maxMovablePoint = Math.abs(Math.cos(radian) * (PLANK_LENGTH/2))   //dynamic based on angle of plank
-
     balls.push({ 
-        x: Math.min(50+maxMovablePoint, Math.max(50-maxMovablePoint, ((event.clientX - rect.left) / rect.width) * 100)),
+        x: Math.min(50+PLANK_LENGTH/2, Math.max(50-PLANK_LENGTH/2, ((event.clientX - rect.left) / rect.width) * 100)),
         y: 10,
         r: r,
         color:  randomDarkColor(),
@@ -180,10 +163,10 @@ function create_new_ball(event) {
         targetX: null,  
         targetY: null,
         weight: weight,
-        d: null,
-        onRightSide: null
+        distanceToCenter: null
     }); 
-    calculateBalltargetY(balls[balls.length-1], measures.angle)
+    calculateHoldingBalltargetY(balls[balls.length-1], measures.angle)
+    console.log("tamam, ", measures.angle, " ile oluşturduk")
 }
 
 
@@ -224,53 +207,55 @@ function draw() {
 //generate seperate thread for each falling ball
 function startFalling(ball) {
     const worker = new Worker('fallThread.js');
-
     worker.postMessage({
         type: 'initial',
         y: ball.y,
         targetY: ball.targetY,
         weight: ball.weight
-    })
+    });
+
     worker.onmessage = function(e) {
         ball.y = e.data.y; // update ball position
         draw();             
         if (e.data.y === ball.targetY) {   //ball reached target, its terminate thread
-            ball.d = distanceToCenterFromBallTouchPoint(ball.x, ball.y, ball.r)  //d is negative if ball is on the left arm of plank
-            ball.falling = false;   //ball falled
+            ball.distanceToCenter = distanceToCenter([ball.x, ball.y]) // should be fixed (not center of ball, the position ball touched to plank should be considered)
+
+            ball.falling = false;
             worker.terminate(); 
 
-            updateTorque(ball);
+            endFalling(ball);
         }
     };
 }
-
-function updateTorque(ball) {
+function endFalling(ball) {
     //torque calculation: d * w
+    const d = distanceToCenter([ball.x, ball.y]);
+    ball.distanceToCenter = d;
+    const torque = d * ball.weight;
     
-    const torque = horizontalDistanceToPivot(ball) * ball.weight;
     if(ball.x >= 50) {
         measures.right_side.weight += ball.weight;
         measures.right_side.rawTorque += torque;
     }
     else {
         measures.left_side.weight += ball.weight;
-        measures.left_side.rawTorque += Math.abs(torque);
+        measures.left_side.rawTorque += torque;
     }
 
     draw()
-
-    if(rotationThread) {  //if the plank was on rotation during the ball touced the plank, update rotation parameters
+    if(rotationThread) {
         rotationThread.postMessage({
             type: 'update',
             measures: measures,
             balls: balls.slice(0, -1)
         })
     } else {
-        startRotation()
+    startRotation()
+
     }
+
     //start rotating
 }
-
 
 
 let rotationThread;
@@ -282,22 +267,14 @@ function startRotation() {
         type: 'initial'
     });
 
-    rotationThread.onmessage = function(e) {  //angle updated
+    rotationThread.onmessage = function(e) {
         measures.angle = e.data.angle; // update ball position
         measures.angularAcceleration = e.data.angularAcceleration
         measures.angularVelocity = e.data.angularVelocity
         
-
-        
-        for(let i = 0; i < balls.length-1; i++) {
-            if(!balls[i].falling) //means that ball is on the plank
-                updateDroppedBallPositionY(balls[i], measures.angle)
-        }
-
         if(measures.angle !== 30 && measures.angle !== -30) {
-            calculateBalltargetY(balls[balls.length-1], measures.angle);  //last balls targety change
+            calculateHoldingBalltargetY(balls[balls.length-1], measures.angle);  //last balls targety change
         }
-        
         if(e.data.finished) {
             rotationThread.terminate() //finish thread
             rotationThread = null;  
@@ -310,7 +287,6 @@ function startRotation() {
 
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {
-
     let lastBallIndex = balls.length-1
     const radian = measures.angle * Math.PI / 180
     const maxMovablePoint = Math.abs(Math.cos(radian) * (PLANK_LENGTH/2))   //dynamic based on angle of plank
@@ -319,7 +295,8 @@ canvas.addEventListener('mousemove', (event) => {
     balls[lastBallIndex].y = 10;
     balls[lastBallIndex].visible = true;
 
-    calculateBalltargetY(balls[lastBallIndex], measures.angle)
+    calculateHoldingBalltargetY(balls[lastBallIndex], measures.angle)
+
     draw();
 });
 
@@ -336,6 +313,7 @@ canvas.addEventListener('click', (event) => {
 
     startFalling(balls[balls.length-1])
     create_new_ball(event)
+    //startRotation();
     draw();
 });
 

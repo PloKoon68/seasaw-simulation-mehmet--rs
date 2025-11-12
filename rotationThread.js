@@ -7,13 +7,6 @@ let balls;
 const gravityAcceleration = 10; //gravity acceleration 
 const loopPeriod = 20;
 
-//angularAcceleration = (lw-rw)*cos(alpha)*g / (lw + lr)*L
-/*
-function calculateConstantCoefficient(leftWeight, rightWeight) {   //the part except cos(angle)
-    return (leftWeight-rightWeight) * g / ((leftWeight + rightWeight) * L)
-}
-    */
-
 let count = 0
 
 function calculateConstantCoefficient(netRawTorque) { 
@@ -24,10 +17,13 @@ function calculateConstantCoefficient(netRawTorque) {
     for(let i = 0; i < balls.length; i++) {
         const ball = balls[i];
         //weight = m * g
-        denominator += ball.weight * ball.distanceToCenter * ball.distanceToCenter;
+        denominator += ball.weight * ball.d * ball.d;
     }
     denominator /= gravityAcceleration;
 
+        if (denominator === 0) {
+        return 0;
+    }
     return nominator/denominator;   //τnet​ / I
 }
 
@@ -48,6 +44,7 @@ onmessage = function(e) {
         targetAngle = updateTargetAngle(netRawTorque);
     } else if(e.data.type === 'initial') { 
         // initial setup
+
         balls = e.data.balls
         angle = e.data.measures.angle
         const netRawTorque = e.data.measures.right_side.rawTorque - e.data.measures.left_side.rawTorque;
