@@ -90,12 +90,20 @@ async function loop() {
     while (angle !== targetAngle) {
         angularAcceleration = coefficient * Math.cos(angle * Math.PI / 180);
         angularVelocity += angularAcceleration * (loopPeriod/1000);
-        angle += angularVelocity    ;
+        angle += angularVelocity;
         
-        if (angle > targetAngle) {
-            angle = targetAngle  //finish loop
+        //finish loop
+        if (targetAngle > 0) {
+            if(angle > targetAngle) angle = targetAngle  
         }
-        postMessage({ angle });  //send  to main.js it will update (rotate)
+         if (targetAngle < 0) {
+            if(angle < targetAngle) angle = targetAngle  
+        }
+        else {
+            if(Math.abs(targetAngle - angle) < 1) angle = targetAngle      
+        }
+
+        postMessage({ angle: angle, targetAngle: targetAngle });  //send  to main.js it will update (rotate)
         await wait(loopPeriod);
     }
     self.close(); // terminate this worker

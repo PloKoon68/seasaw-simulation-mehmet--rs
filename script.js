@@ -247,8 +247,28 @@ function startRotation() {
     });
 
     rotationThread.onmessage = function(e) {
-        measures.angle = e.data.angle; // update ball position
+        const angle= e.data.angle; // update ball position
+        measures.angle = angle
+        const targetAngle = e.data.targetAngle 
         draw();             
+
+        //finish loop
+        if (targetAngle > 0) {
+            console.log("here: ", targetAngle === angle)
+            if(angle === targetAngle) {
+                rotationThread.terminate(); 
+            }
+        }
+         if (targetAngle < 0) {
+            if(angle === targetAngle)  {
+                rotationThread.terminate(); 
+            }   
+        }
+        else {
+            if(Math.abs(targetAngle - angle) < 1)  {
+                rotationThread.terminate(); 
+            }
+        }
     };
 }
 
@@ -265,6 +285,7 @@ canvas.addEventListener('mousemove', (event) => {
 
 // remove ball when leaves canvas
 canvas.addEventListener('mouseleave', () => {
+    console.log(rotationThread)
     balls[balls.length-1].visible = false;
     draw();
 });
