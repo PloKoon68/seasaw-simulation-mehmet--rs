@@ -15,6 +15,8 @@ const PLANK_WIDTH = 5;
 const DROP_BALL_HORIZONTAL_LIMIT = 10  // if mouse is outside 10 percent to the side of canvas horizontal line, it is not droppable
 
 
+let balls = []
+
 let measures = {
     left_side: {weight: 0, rawTorque: 0, netTorque: 0},
     right_side: {weight: 0, rawTorque: 0, netTorque: 0},
@@ -24,26 +26,11 @@ let measures = {
 }
 
 
-function updateIndicators() {
-    document.getElementById("angle-value").textContent = measures.angle.toFixed(1);
-    document.getElementById("left-weight").textContent = measures.left_side.weight.toFixed(1);
-    document.getElementById("right-weight").textContent = measures.right_side.weight.toFixed(1);
-    document.getElementById("left-torque").textContent = measures.left_side.rawTorque.toFixed(1);
-    document.getElementById("right-torque").textContent = measures.right_side.rawTorque.toFixed(1);
-}
-
-
-function htmlUpdateNextWeight(){
-    document.getElementById("next-weight").textContent = balls[balls.length-1].weight;
-}
-
-
 function htmlUpdateRightWeight() {document.getElementById("right-weight").textContent = measures.right_side.weight;}
 function htmlUpdateLeftWeight() {document.getElementById("left-weight").textContent = measures.left_side.weight;}
 
 function htmlUpdateRightRawTorque() {document.getElementById("right-raw-torque").textContent = measures.right_side.rawTorque.toFixed(1);}
 function htmlUpdateLeftRawTorque() {document.getElementById("left-raw-torque").textContent = measures.left_side.rawTorque.toFixed(1);}
-
 
 function htmlUpdateRotationParameters() {
     document.getElementById("right-net-torque").textContent = measures.right_side.netTorque.toFixed(2);
@@ -54,6 +41,11 @@ function htmlUpdateRotationParameters() {
     document.getElementById("angular-velocity").textContent = measures.angularVelocity.toFixed(4);
     document.getElementById("angular-acceleration").textContent = measures.angularAcceleration.toFixed(4);
 }
+
+function htmlUpdateNextWeight(){
+    document.getElementById("next-weight").textContent = balls[balls.length-1].weight;
+}
+
 
 
 
@@ -165,7 +157,6 @@ function updateNetTorque() {
 
 
 
-let balls = []
 
 function distanceToCenterFromBallTouchPoint(bx, by, r) {
     const radian = measures.angle * Math.PI / 180   // get the current angle
@@ -432,3 +423,49 @@ ctx.fillText('Test text!', 200, 100);
 
 // Clear canvas (wipe everything)
 //ctx.clearRect(50, 50, canvas.width, canvas.height);
+
+
+function saveStateToLocalStorage() {
+    const state = {
+        balls: balls,
+        measures: measures
+    };
+    localStorage.setItem("seesawState", JSON.stringify(state));
+}
+
+function loadStateFromLocalStorage() {
+    const savedState = localStorage.getItem("seesawState");
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        balls = state.balls || [];
+        measures = state.measures || measures;
+
+        console.log("State loaded from localStorage");
+
+        // Updat UI
+        htmlUpdateLeftWeight();
+        htmlUpdateRightWeight();
+        htmlUpdateLeftRawTorque();
+        htmlUpdateRightRawTorque();
+        htmlUpdateRotationParameters();
+
+        draw();
+        startRotation()
+/*
+        if(rotationThread) {  //if the plank was on rotation during the ball touced the plank, update rotation parameters
+            rotationThread.postMessage({
+                type: 'update',
+                measures: measures,
+                balls: balls.slice(0, -1)
+            })
+        }
+            */
+    } else {
+        console.log("No saved state found.");
+    }
+}
+
+
+window.addEventListener("beforeunload", saveStateToLocalStorage);
+window.addEventListener("load", loadStateFromLocalStorage);
+
