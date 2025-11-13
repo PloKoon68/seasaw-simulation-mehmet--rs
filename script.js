@@ -93,14 +93,23 @@ function calculateBalltargetY(ball, angle) {    // called for each ball when the
     const newTargetY = (Math.tan(radian) * (ball.x - 50)) + (-(PLANK_WIDTH/2)/Math.cos(radian) - ball.r) + 50
     ball.targetY = newTargetY
 }
+function updateFallingBallTarget(ball) {
+    const thread = fallThreads.get(ball.id);
+    if (thread) {
+        thread.postMessage({
+            type: 'update',
+            targetY: ball.targetY
+        });
+    }
+}
+
+
 
 function updateDroppedBallPositionY(ball, angle) {    // called for each ball when the rotation thread updates the angle
     const radian = angle * Math.PI / 180;
 
-    console.log("geldi: ", ball.d * Math.cos(radian))
     const newY = ball.d * Math.sin(radian) - (ball.r + PLANK_WIDTH/2) * Math.cos(radian) + 50;
     const newX = ball.d * Math.cos(radian) + (ball.r + PLANK_WIDTH/2) * Math.sin(radian) + 50;
-    console.log("n: ", ball.d, newY)
 
     
     ball.y = newY
@@ -145,6 +154,7 @@ function randomDarkColor() {
 
 const initialWeight = Math.floor(Math.random() * 10) + 1
 const initialRadius = 4 + initialWeight/3
+let ballCount = 0;
 
 const initialBall = { 
     x: 0,
@@ -157,10 +167,10 @@ const initialBall = {
     targetY: null,
     weight: initialWeight,
     d: null,
-    onRightSide: null
+    onRightSide: null,
+    id: ballCount++
 }
 
-calculateBalltargetY(initialBall, measures.angle)
 balls.push(initialBall); 
 
 function create_new_ball(event) {
@@ -181,9 +191,9 @@ function create_new_ball(event) {
         targetY: null,
         weight: weight,
         d: null,
-        onRightSide: null
+        onRightSide: null,
+        id: ballCount++
     }); 
-    calculateBalltargetY(balls[balls.length-1], measures.angle)
 }
 
 
@@ -222,27 +232,36 @@ function draw() {
 
 
 //generate seperate thread for each falling ball
+const fallThreads = new Map();  //store currently working threads in a set
 function startFalling(ball) {
-    const worker = new Worker('fallThread.js');
+    const fallThread = new Worker('fallThread.js');
 
-    worker.postMessage({
+    // Add threadto map, bonding it with relevant ball (with ball id)
+    fallThreads.set(ball.id, fallThread);
+
+
+    fallThread.postMessage({
         type: 'initial',
-        y: ball.y,
         targetY: ball.targetY,
-        weight: ball.weight
-    })
-    worker.onmessage = function(e) {
-        ball.y = e.data.y; // update ball position
-        draw();             
-        if (e.data.y === ball.targetY) {   //ball reached target, its terminate thread
-            ball.d = distanceToCenterFromBallTouchPoint(ball.x, ball.y, ball.r)  //d is negative if ball is on the left arm of plank
+        y: ball.y,
+    });
+
+    fallThread.onmessage = function (e) {
+        ball.y = e.data.y;   // update balls current position
+        draw();
+        if (e.data.done) {
+
+            ball.d = distanceToCenterFromBallTouchPoint(ball.x, ball.y, ball.r);  //d is negative if ball is on the left arm of plank
             ball.falling = false;   //ball falled
-            worker.terminate(); 
+           
+            fallThread.terminate(); // close the thread
+            fallThreads.delete(ball.id); // delte it from the set
 
             updateTorque(ball);
         }
     };
 }
+
 
 function updateTorque(ball) {
     //torque calculation: d * w
@@ -288,14 +307,20 @@ function startRotation() {
         measures.angularVelocity = e.data.angularVelocity
         
 
-        
-        for(let i = 0; i < balls.length-1; i++) {
-            if(!balls[i].falling) //means that ball is on the plank
+        //update already dropped balls positions
+        for(let i = 0; i < balls.length-1; i++) {   
+            if(!balls[i].falling) 
                 updateDroppedBallPositionY(balls[i], measures.angle)
         }
 
         if(measures.angle !== 30 && measures.angle !== -30) {
-            calculateBalltargetY(balls[balls.length-1], measures.angle);  //last balls targety change
+
+            for(let i = balls.length-1; i >= 0; i--) {
+                if(balls[i].falling) { //last n balls are falling, update their targetY
+                    calculateBalltargetY(balls[i], measures.angle);  //last balls targetY change
+                    updateFallingBallTarget(balls[i])                //send new targetY value to fallingThread of that ball
+                }
+            }
         }
         
         if(e.data.finished) {
@@ -319,7 +344,6 @@ canvas.addEventListener('mousemove', (event) => {
     balls[lastBallIndex].y = 10;
     balls[lastBallIndex].visible = true;
 
-    calculateBalltargetY(balls[lastBallIndex], measures.angle)
     draw();
 });
 
@@ -332,9 +356,10 @@ canvas.addEventListener('mouseleave', () => {
 
 // drop the ball on click
 canvas.addEventListener('click', (event) => {
-    balls[balls.length-1].falling = true;
-
-    startFalling(balls[balls.length-1])
+    let lastBallIndex = balls.length-1
+    balls[lastBallIndex].falling = true;
+    calculateBalltargetY(balls[lastBallIndex], measures.angle)
+    startFalling(balls[lastBallIndex])
     create_new_ball(event)
     draw();
 });
