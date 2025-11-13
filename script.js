@@ -15,7 +15,10 @@ const PLANK_WIDTH = 5;
 const DROP_BALL_HORIZONTAL_LIMIT = 10  // if mouse is outside 10 percent to the side of canvas horizontal line, it is not droppable
 
 
+
+
 let balls = []
+let ballCount = 0;
 
 let measures = {
     left_side: {weight: 0, rawTorque: 0, netTorque: 0},
@@ -25,6 +28,133 @@ let measures = {
     angularVelocity: 0
 }
 
+let isPaused;
+
+
+function resetSeesaw() {
+    isPaused = false;
+    continueSimulation()
+
+    // Reset balls and measuers
+    balls = [];
+    measures = {
+        left_side: {weight: 0, rawTorque: 0, netTorque: 0},
+        right_side: {weight: 0, rawTorque: 0, netTorque: 0},
+        angle: 0,
+        angularAcceleration: 0,
+        angularVelocity: 0
+    };
+
+    // Stop all threads
+    fallThreads.forEach(thread => thread.terminate());
+    fallThreads.clear();
+    if (rotationThread) {
+        rotationThread.terminate();
+        rotationThread = null;
+    }
+
+    // clean Localstorage
+    localStorage.removeItem("seesawState");
+
+    // New initial ball
+    const initialWeight = Math.floor(Math.random() * 10) + 1;
+    const initialRadius = 4 + initialWeight / 3;
+    ballCount = 0;
+    balls.push({
+        x: 0,
+        y: 0,
+        r: initialRadius,
+        color: randomDarkColor(),
+        visible: false,
+        falling: false,
+        savedFallSpeed: 0,
+        targetX: null,
+        targetY: null,
+        weight: initialWeight,
+        d: null,
+        onRightSide: null,
+        id: ballCount++
+    });
+
+    htmlUpdateNextWeight();
+    htmlUpdateLeftWeight();
+    htmlUpdateRightWeight();
+    htmlUpdateLeftRawTorque();
+    htmlUpdateRightRawTorque();
+    htmlUpdateRotationParameters();
+
+    draw();
+}
+
+
+
+
+const pauseButton = document.getElementById("pause-button");
+
+pauseButton.addEventListener('click', function() {
+    if (this.id === 'pause-button') {
+        // Eğer butona tıklandığında ID'si 'pause-button' ise
+        this.textContent = 'Continue';
+        this.id = 'continue-button';
+    } else {
+        // Eğer butona tıklandığında ID'si 'continue-button' ise
+        this.textContent = 'Pause';
+        this.id = 'pause-button';
+    }
+})
+
+pauseButton.addEventListener("click", () => {
+    if (!isPaused) {
+        pauseSimulation();
+    } else {
+        continueSimulation();
+    }
+    isPaused = !isPaused;
+});
+
+
+function pauseSimulation() {
+
+    console.log("pause ettim")
+    // Delete all active threasd
+    if (rotationThread)
+        terminateRotationThread();
+
+    terminateFallingThreads();
+
+    //update in html
+    pauseButton.textContent = "Continue";
+    pauseButton.classList.add("continue-button");
+    pauseButton.classList.remove("pause-button");
+    pauseButton.style.backgroundColor = "#27ae60";
+}
+
+function continueSimulation() {
+
+    //continue the therads from where they were left
+    let lastAngularVelocity = measures.angularVelocity
+    console.log("bastım ")
+    startRotation(lastAngularVelocity)
+    
+    for(let i = 0; i < balls.length; i++)
+        if(balls[i].falling) 
+            startFalling(balls[i], balls[i].loadedFallSpeed)
+
+    //update in html
+    pauseButton.textContent = "Pause";
+    pauseButton.classList.add("pause-button");
+    pauseButton.classList.remove("continue-button");
+    pauseButton.style.backgroundColor = "rgb(229, 222, 14)";
+
+}
+
+
+
+document.getElementById("reset-button").addEventListener("click", resetSeesaw);
+console.log("d: ", document.getElementsByClassName("continue-button")[0])
+
+
+//////////////////////////////////////////////
 
 function htmlUpdateRightWeight() {document.getElementById("right-weight").textContent = measures.right_side.weight;}
 function htmlUpdateLeftWeight() {document.getElementById("left-weight").textContent = measures.left_side.weight;}
@@ -132,7 +262,6 @@ function updateDroppedBallPositionY(ball, angle) {    // called for each ball wh
     const newY = ball.d * Math.sin(radian) - (ball.r + PLANK_WIDTH/2) * Math.cos(radian) + 50;
     const newX = ball.d * Math.cos(radian) + (ball.r + PLANK_WIDTH/2) * Math.sin(radian) + 50;
 
-    
     ball.y = newY
     ball.x = newX
 }
@@ -178,28 +307,6 @@ function randomDarkColor() {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-const initialWeight = Math.floor(Math.random() * 10) + 1
-const initialRadius = 4 + initialWeight/3
-let ballCount = 0;
-
-const initialBall = { 
-    x: 0,
-    y: 0,
-    r: initialRadius,
-    color:  randomDarkColor(),
-    visible: false,
-    falling: false,
-    targetX: null,  
-    targetY: null,
-    weight: initialWeight,
-    d: null,
-    onRightSide: null,
-    id: ballCount++
-}
-
-balls.push(initialBall); 
-htmlUpdateNextWeight();
-
 function createNewBall(event) {
     const weight = Math.floor(Math.random() * 10) + 1;
     const r = 4 + weight/3;
@@ -214,6 +321,7 @@ function createNewBall(event) {
         color:  randomDarkColor(),
         visible: true,
         falling: false,
+        savedFallSpeed: 0,
         targetX: null,  
         targetY: null,
         weight: weight,
@@ -224,17 +332,6 @@ function createNewBall(event) {
 
     htmlUpdateNextWeight();
 }
-
-
-
-const rotateButton = document.getElementById('pause-button');
-function rotateSeesaw() {
-    pDrawSeesaw(20); // example: rotate 15 degrees
-
-    console.log("Button clicked!");
-}
-rotateButton.addEventListener('click', rotateSeesaw);
-
 
 
 
@@ -262,7 +359,7 @@ function draw() {
 
 //generate seperate thread for each falling ball
 const fallThreads = new Map();  //store currently working threads in a set
-function startFalling(ball) {
+function startFalling(ball, loadedFallSpeed) {
     const fallThread = new Worker('fallThread.js');
 
     // Add threadto map, bonding it with relevant ball (with ball id)
@@ -273,10 +370,12 @@ function startFalling(ball) {
         type: 'initial',
         targetY: ball.targetY,
         y: ball.y,
+        loadedFallSpeed: loadedFallSpeed
     });
 
     fallThread.onmessage = function (e) {
         ball.y = e.data.y;   // update balls current position
+        ball.savedFallSpeed = e.data.fallSpeed; //saving for load state
         draw();
 
         if (e.data.done) {   // the moment ball has fallen and touches the plank
@@ -332,13 +431,17 @@ function updateTorque(ball) {
 
 let rotationThread;
 function startRotation(loadedAngularVelocity) {
+    console.log("girdim")
+
     rotationThread = new Worker('rotationThread.js');
+    console.log("threade başlıyorum:", balls, loadedAngularVelocity, rotationThread)
     rotationThread.postMessage({
         measures: measures,
         balls: balls.slice(0, -1),
         type: 'initial',
         loadedAngularVelocity: loadedAngularVelocity
     });
+
 
     rotationThread.onmessage = function(e) {  //angle updated
         measures.angle = e.data.angle; // update ball position
@@ -361,8 +464,8 @@ function startRotation(loadedAngularVelocity) {
             }
         }
         if(e.data.finished) {
-            rotationThread.terminate() //finish thread
-            rotationThread = null;  
+            terminateRotationThread();
+  
             //angular velocity and acceleration becomes 0
             measures.angularVelocity = 0;
             measures.angularAcceleration = 0;
@@ -375,8 +478,20 @@ function startRotation(loadedAngularVelocity) {
     };
 }
 
+function terminateRotationThread() {
+    rotationThread.terminate() //finish thread
+    rotationThread = null;
+}
+
+function terminateFallingThreads() {
+    for (const [id, thread] of fallThreads.entries()) {
+        thread.terminate(); // close the thread
+        fallThreads.delete(id); // delte it from the set
+    }
+}
 
 
+console.log(balls)
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {
 
@@ -400,16 +515,19 @@ canvas.addEventListener('mouseleave', () => {
 
 // drop the ball on click
 canvas.addEventListener('click', (event) => {
-    let lastBallIndex = balls.length-1
-    balls[lastBallIndex].falling = true;
-    calculateBalltargetY(balls[lastBallIndex], measures.angle)
-    startFalling(balls[lastBallIndex])
-    createNewBall(event)
-    draw();
+    if(!isPaused) {
+        let lastBallIndex = balls.length-1
+        balls[lastBallIndex].falling = true;
+        calculateBalltargetY(balls[lastBallIndex], measures.angle)
+        startFalling(balls[lastBallIndex])
+        createNewBall(event)
+        draw();
+    } else {
+        alert('First press continue please!')
+    }
 });
 
 
-draw();
 
 
 /*
@@ -425,7 +543,8 @@ ctx.fillText('Test text!', 200, 100);
 function saveStateToLocalStorage() {
     const state = {
         balls: balls,
-        measures: measures
+        measures: measures,
+        isPaused: isPaused
     };
     localStorage.setItem("seesawState", JSON.stringify(state));
 }
@@ -436,7 +555,8 @@ function loadStateFromLocalStorage() {
         const state = JSON.parse(savedState);
         balls = state.balls || [];
         measures = state.measures || measures;
-
+        isPaused = state.isPaused;
+        console.log("pas:" , isPaused)
 
         // Updat UI
         htmlUpdateLeftWeight();
@@ -445,72 +565,28 @@ function loadStateFromLocalStorage() {
         htmlUpdateRightRawTorque();
         htmlUpdateRotationParameters();
 
-        draw();
-
+//pauseSimulation
         //continue the therads from where they were left
-        let loadedAngularVelocity = measures.angularVelocity
-        startRotation(loadedAngularVelocity)
-
-        for(let i = 0; i < balls.length; i++)
-            startFalling(balls[i])
-
-    } else 
+        if(!isPaused) {
+            let loadedAngularVelocity = measures.angularVelocity
+            startRotation(loadedAngularVelocity)
+            
+            for(let i = 0; i < balls.length; i++)
+                if(balls[i].falling) 
+                    startFalling(balls[i], balls[i].loadedFallSpeed)
+        }
+        else {
+            pauseSimulation();
+            draw()
+        }
+        
+    } else {
         console.log("No saved state found.");
+        resetSeesaw()
+    }
 }
 
 
 window.addEventListener("beforeunload", saveStateToLocalStorage);
 window.addEventListener("load", loadStateFromLocalStorage);
 
-
-function resetSeesaw() {
-    // Reset balls and measuers
-    balls = [];
-    measures = {
-        left_side: {weight: 0, rawTorque: 0, netTorque: 0},
-        right_side: {weight: 0, rawTorque: 0, netTorque: 0},
-        angle: 0,
-        angularAcceleration: 0,
-        angularVelocity: 0
-    };
-
-    // Stop all threads
-    fallThreads.forEach(thread => thread.terminate());
-    fallThreads.clear();
-    if (rotationThread) {
-        rotationThread.terminate();
-        rotationThread = null;
-    }
-
-    // LocalStorage'ı temizle
-    localStorage.removeItem("seesawState");
-
-    // Yeni top oluştur
-    const initialWeight = Math.floor(Math.random() * 10) + 1;
-    const initialRadius = 4 + initialWeight / 3;
-    balls.push({
-        x: 0,
-        y: 0,
-        r: initialRadius,
-        color: randomDarkColor(),
-        visible: false,
-        falling: false,
-        targetX: null,
-        targetY: null,
-        weight: initialWeight,
-        d: null,
-        onRightSide: null,
-        id: ballCount++
-    });
-
-    htmlUpdateNextWeight();
-    htmlUpdateLeftWeight();
-    htmlUpdateRightWeight();
-    htmlUpdateLeftRawTorque();
-    htmlUpdateRightRawTorque();
-    htmlUpdateRotationParameters();
-
-    draw();
-}
-
-document.getElementById("reset-button").addEventListener("click", resetSeesaw);

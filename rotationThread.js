@@ -7,8 +7,6 @@ let balls;
 const gravityAcceleration = 10; //gravity acceleration 
 const loopPeriod = 20;
 
-let count = 0
-
 function calculateConstantCoefficient(netRawTorque) { 
     let nominator = netRawTorque  //τnet​=right∑​(ri)​.(mi)​.g.cos(θ)−left∑​(ri).(​mi).​g.cos(θ)
                                   //since teta angle will change in time, it is a variable that will be pass in the main loop evey in every step
@@ -36,9 +34,10 @@ function updateTargetAngle(netRawTorque) {   //the part except cos(angle)
 
 onmessage = function(e) {
     // Check if it's an update message or start message
+    console.log("baslıyok")
+
     if (e.data.type === 'update') {
         balls = e.data.balls;
-        count++;
         const netRawTorque = e.data.measures.right_side.rawTorque - e.data.measures.left_side.rawTorque;
         coefficient = calculateConstantCoefficient(netRawTorque)
         targetAngle = updateTargetAngle(netRawTorque);
@@ -47,11 +46,14 @@ onmessage = function(e) {
         balls = e.data.balls
         angle = e.data.measures.angle
         const netRawTorque = e.data.measures.right_side.rawTorque - e.data.measures.left_side.rawTorque;
+
         coefficient = calculateConstantCoefficient(netRawTorque)
         targetAngle = updateTargetAngle(netRawTorque);
 
         //if loaded saved state, continue from last velocity
         if(e.data.loadedAngularVelocity) angularVelocity = e.data.loadedAngularVelocity
+        console.log("başladık tekrardan: ", e.data.loadedAngularVelocity, angularVelocity)
+
         loop();
     }
 };

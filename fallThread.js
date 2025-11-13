@@ -8,9 +8,11 @@ onmessage = function(e) {
     dynamicTargetY = e.data.targetY;   //targetY may update during fall (if plank is keep rotating at the same tim)
     if(e.data.type === 'initial')  {  //only staty the thread starts
         let y = e.data.y;
-        console.log("giredi: ")
-        loop(y);
 
+        //if loaded saved state, continue with last fallSpeed
+        if(e.data.loadedFallSpeed) loadedFallSpeed = e.data.loadedFallSpeed
+
+        loop(y);
     }
 };
 
@@ -23,7 +25,7 @@ async function loop(y) {
         fallSpeed += gravityAcceleration * (loopPeriod/1000);
         y += fallSpeed;
         if(y > dynamicTargetY) {
-            postMessage({ y: dynamicTargetY, done: true }); // send new vertical position to main thread
+            postMessage({ y: dynamicTargetY, done: true, fallSpeed: fallSpeed }); // send new vertical position to main thread
             break;
         }
         postMessage({ y }); // send new vertical position to main thread

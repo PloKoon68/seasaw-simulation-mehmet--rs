@@ -93,6 +93,9 @@ body {
     background-color: rgb(90, 97, 19);
 }
 
+.continue-button {
+    background-color: #27ae60; 
+}
 
 /* log pnel */
 .logs-panel {
