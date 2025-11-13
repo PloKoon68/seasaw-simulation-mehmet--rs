@@ -42,9 +42,7 @@ function htmlUpdateRotationParameters() {
     document.getElementById("angular-acceleration").textContent = measures.angularAcceleration.toFixed(4);
 }
 
-function htmlUpdateNextWeight(){
-    document.getElementById("next-weight").textContent = balls[balls.length-1].weight;
-}
+function htmlUpdateNextWeight(){document.getElementById("next-weight").textContent = balls[balls.length-1].weight;}
 
 
 
@@ -334,12 +332,14 @@ function updateTorque(ball) {
 
 
 let rotationThread;
-function startRotation() {
+function startRotation(loadedAngularVelocity) {
     rotationThread = new Worker('rotationThread.js');
+    console.log("took: ", loadedAngularVelocity)
     rotationThread.postMessage({
         measures: measures,
         balls: balls.slice(0, -1),
-        type: 'initial'
+        type: 'initial',
+        loadedAngularVelocity: loadedAngularVelocity
     });
 
     rotationThread.onmessage = function(e) {  //angle updated
@@ -365,7 +365,7 @@ function startRotation() {
         if(e.data.finished) {
             rotationThread.terminate() //finish thread
             rotationThread = null;  
-
+            console.log("rotationo bitti")
             //angular velocity and acceleration becomes 0
             measures.angularVelocity = 0;
             measures.angularAcceleration = 0;
@@ -440,7 +440,6 @@ function loadStateFromLocalStorage() {
         balls = state.balls || [];
         measures = state.measures || measures;
 
-        console.log("State loaded from localStorage");
 
         // Updat UI
         htmlUpdateLeftWeight();
@@ -450,19 +449,12 @@ function loadStateFromLocalStorage() {
         htmlUpdateRotationParameters();
 
         draw();
-        startRotation()
-/*
-        if(rotationThread) {  //if the plank was on rotation during the ball touced the plank, update rotation parameters
-            rotationThread.postMessage({
-                type: 'update',
-                measures: measures,
-                balls: balls.slice(0, -1)
-            })
-        }
-            */
-    } else {
+        let loadedAngularVelocity = measures.angularVelocity
+        startRotation(loadedAngularVelocity)
+
+
+    } else 
         console.log("No saved state found.");
-    }
 }
 
 
@@ -516,7 +508,6 @@ function resetSeesaw() {
     htmlUpdateLeftRawTorque();
     htmlUpdateRightRawTorque();
     htmlUpdateRotationParameters();
-
 
     draw();
 }

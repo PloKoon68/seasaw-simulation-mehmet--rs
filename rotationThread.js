@@ -36,7 +36,6 @@ function updateTargetAngle(netRawTorque) {   //the part except cos(angle)
 
 onmessage = function(e) {
     // Check if it's an update message or start message
-    console.log("he")
     if (e.data.type === 'update') {
         balls = e.data.balls;
         count++;
@@ -45,13 +44,15 @@ onmessage = function(e) {
         targetAngle = updateTargetAngle(netRawTorque);
     } else if(e.data.type === 'initial') { 
         // initial setup
-        console.log("İT İS İN")
         balls = e.data.balls
         angle = e.data.measures.angle
         const netRawTorque = e.data.measures.right_side.rawTorque - e.data.measures.left_side.rawTorque;
         coefficient = calculateConstantCoefficient(netRawTorque)
         targetAngle = updateTargetAngle(netRawTorque);
 
+        //if loaded saved state, continue from last velocity
+        if(e.data.loadedAngularVelocity) angularVelocity = e.data.loadedAngularVelocity
+        console.log(e.data.loadedAngularVelocity)
         loop();
     }
 };
@@ -64,7 +65,6 @@ async function loop() {
     let finished = false;
 
     while (!finished) {
-        console.log("heeee")
         if(Math.abs(angle) > 30) {
             angularAcceleration = 0;
             angularVelocity = 0;
