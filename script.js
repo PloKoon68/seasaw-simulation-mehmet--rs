@@ -77,6 +77,9 @@ function resetSeesaw() {
     htmlUpdateRightRawTorque();
     htmlUpdateRotationParameters();
 
+    document.querySelector('.logs-panel').innerHTML = '';
+
+
     draw();
 }
 
@@ -177,9 +180,49 @@ function htmlUpdateRotationIndicator() {
 
 
 
+function addLog(weight, side, distance) {
+    const logsPanel = document.querySelector('.logs-panel');
+    
+    const log = document.createElement('div');
+    log.className = 'log-item';
+    distance = percentage_to_px(distance.toFixed(2))
+    log.textContent = `${weight}kg laned on ${side} side at ${distance}px from pivot center`;
+    
+    logsPanel.appendChild(log);
+    logsPanel.scrollTop = logsPanel.scrollHeight;
+}
+
+function logsList() {
+    const logsPanel = document.querySelector('.logs-panel');
+    const logs = [];
+    
+    logsPanel.querySelectorAll('.log-item').forEach(log => {
+        logs.push(log.textContent);
+    });
+    
+    return logs;
+}
+
+function loadLogs(logsList) {
+    const logsPanel = document.querySelector('.logs-panel');
+    
+    logsList.forEach(logText => {
+        const log = document.createElement('div');
+        log.className = 'log-item';
+        log.textContent = logText;
+        logsPanel.appendChild(log);
+    });
+    logsPanel.scrollTop = logsPanel.scrollHeight;
+
+}
+
+
+
+///////////////////////////////////
+// bonus effects 
+
 
 let audioContext = null;
-
 function getAudioContext() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -225,6 +268,98 @@ function playImpactSound(weight) {
         console.warn('Audio playback failed:', e);
     }
 }
+
+
+
+//distance from center indicator
+
+function drawDistanceGrid(centerX, centerY) {
+    centerX = percentage_to_px(centerX)
+    centerY = percentage_to_px(centerY)
+
+    ctx.save();
+    
+    const gridSpacing = PLANK_LENGTH/2; // 40px space between numbers
+    const gridCount = 5;    // 5 main lines
+    const rulerY = centerY + 45; // ruler position
+    
+    // background
+    ctx.fillStyle = 'rgba(238, 243, 233, 0.8)';
+    ctx.fillRect(
+        centerX - (gridCount * gridSpacing) - 10, 
+        rulerY - 15, 
+        (gridCount * 2 * gridSpacing) + 20, 
+        25
+    );
+
+
+    // ruker lines
+    for (let i = -gridCount; i <= gridCount; i++) {
+        const x = centerX + (i * gridSpacing);
+        const distance = Math.abs(i * gridSpacing);
+        
+        // line height
+        const isCenter = i === 0;
+        const isMajor = Math.abs(i % 2) === 1; // Every 2 lines are longer
+        const lineHeight = isCenter ? 20 : (isMajor ? 12 : 6);
+        
+        // line clor
+        if (isCenter) {
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+        } else if (i < 0) {
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.4)'; // Left side color
+            ctx.lineWidth = 1;
+        } else {
+            ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)'; // Right side color
+            ctx.lineWidth = 1;
+        }
+        
+        // draw line
+        ctx.beginPath();
+        ctx.moveTo(x, rulerY - lineHeight/2);
+        ctx.lineTo(x, rulerY + lineHeight/2);
+        ctx.stroke();
+        
+        // labels (only for major ones)
+        if (isMajor && !isCenter) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${distance}`, x, rulerY + 20);
+        }
+    }
+    
+    // center label
+    ctx.fillStyle = '#e74c3c';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('PIVOT', centerX, rulerY - 20);
+
+    const ballToDrop = balls[balls.length-1]
+    if(ballToDrop.visible) {
+
+        let ballX = ballToDrop.x
+        let ballXPx = percentage_to_px(ballX)
+        let lineHeight = 10
+    
+        ctx.strokeStyle = '#161414ff';
+        ctx.beginPath();
+        ctx.moveTo(ballXPx, rulerY - lineHeight/2);
+        ctx.lineTo(ballXPx, rulerY + lineHeight/2);
+        ctx.stroke();
+
+
+        ctx.fillStyle = '#161414ff';
+        ctx.font = 'bold 9px Arial';
+        ctx.textAlign = 'center';
+        
+        ctx.fillText('' + (ballXPx-250).toFixed(1), ballXPx, rulerY-10);
+    }
+    
+    ctx.restore();
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 
@@ -319,7 +454,11 @@ function updateDroppedBallPositionY(ball, angle) {    // called for each ball wh
 
 function horizontalDistanceToPivot(ball) {
     const radian = measures.angle * Math.PI / 180;
-    return ball.d * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)
+
+    const dInPixel = percentage_to_px(ball.d)
+
+//    return dInPixel * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)    previous version
+    return dInPixel * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)
 }
 
 function updateNetTorque() {
@@ -342,7 +481,6 @@ function distanceToCenterFromBallTouchPoint(bx, by, r) {
     const dx = bx - dPerpendicularToPlankFromCenter * Math.sin(radian);
     const dy = by + dPerpendicularToPlankFromCenter * Math.cos(radian);   
     const d = Math.sqrt((dx - 50)**2 + (dy - 50)**2);  //returns positive anyway
-
     return dx < 50? -d: d;   //if on the left side of the plank, return negative d
 }
 
@@ -393,6 +531,9 @@ function draw() {
     // draw ground
     pfillRectWith(0, 100, 60, 40, '#0d8a41ff');
 
+    // draw ruler grid to show distance from
+    drawDistanceGrid(50, 66.3);
+
     // draw pivot triangle at the center (50% width, 50% height)
     pdrawShape([[50, 50], [45, 60], [55, 60]], '#5d6767ff');
 
@@ -432,7 +573,10 @@ function startFalling(ball, loadedFallSpeed) {
         if (e.data.done) {   // the moment ball has fallen and touches the plank
             playImpactSound(ball.weight);
 
+
             ball.d = distanceToCenterFromBallTouchPoint(ball.x, ball.y, ball.r);  //d is negative if ball is on the left arm of plank
+            addLog(ball.weight, ball.x > 50? "right": "left", ball.d) //update in html
+
             ball.falling = false;   //ball falled
            
             fallThread.terminate(); // close the thread
@@ -447,7 +591,6 @@ function startFalling(ball, loadedFallSpeed) {
 function updateTorque(ball) {
     //torque calculation: d * w    
     const torque = horizontalDistanceToPivot(ball) * ball.weight;
-
 
     //update measures object and html indicators
     if(ball.x >= 50) {
@@ -584,7 +727,8 @@ function saveStateToLocalStorage() {
     const state = {
         balls: balls,
         measures: measures,
-        isPaused: isPaused
+        isPaused: isPaused,
+        logsList: logsList()
     };
     localStorage.setItem("seesawState", JSON.stringify(state));
 }
@@ -617,14 +761,20 @@ function loadStateFromLocalStorage() {
             pauseSimulation();
             draw()
         }
+
+        //laod logs
+        loadLogs(state.logsList)
         
     } else {
         console.log("No saved state found.");
         resetSeesaw()
     }
+
+
 }
 
 
 window.addEventListener("beforeunload", saveStateToLocalStorage);
 window.addEventListener("load", loadStateFromLocalStorage);
 
+ 
