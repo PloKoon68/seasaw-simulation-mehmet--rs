@@ -46,15 +46,9 @@ function resetSeesaw() {
     };
 
     // Stop all threads
-    fallThreads.forEach(thread => thread.terminate());
-    fallThreads.clear();
-    if (rotationThread) {
-        rotationThread.terminate();
-        rotationThread = null;
-    }
-
+    terminateFallingThreads()
+    terminateRotationThread()
     // clean Localstorage
-    localStorage.removeItem("seesawState");
 
     // New initial ball
     const initialWeight = Math.floor(Math.random() * 10) + 1;
@@ -85,13 +79,13 @@ function resetSeesaw() {
 
     draw();
 }
-document.getElementById("reset-button").addEventListener("click", resetSeesaw);
 
 
 
 
-//pause
 const pauseButton = document.getElementById("pause-button");
+
+
 pauseButton.addEventListener("click", () => {
     if (!isPaused) {
         pauseSimulation();
@@ -101,7 +95,9 @@ pauseButton.addEventListener("click", () => {
     isPaused = !isPaused;
 });
 
+
 function pauseSimulation() {
+
     // Delete all active threasd
     if (rotationThread)
         terminateRotationThread();
@@ -132,18 +128,20 @@ function continueSimulation() {
     pauseButton.style.backgroundColor = "rgb(229, 222, 14)";
 
 }
+document.getElementById("reset-button").addEventListener("click", resetSeesaw);
+
 
 //////////////////////////////////////////////
 
 function htmlUpdateRightWeight() {document.getElementById("right-weight").textContent = measures.right_side.weight;}
 function htmlUpdateLeftWeight() {document.getElementById("left-weight").textContent = measures.left_side.weight;}
 
-function htmlUpdateRightRawTorque() {document.getElementById("right-raw-torque").textContent = measures.right_side.rawTorque.toFixed(1);}
-function htmlUpdateLeftRawTorque() {document.getElementById("left-raw-torque").textContent = measures.left_side.rawTorque.toFixed(1);}
+function htmlUpdateRightRawTorque() {document.getElementById("right-raw-torque").textContent = measures.right_side.rawTorque.toFixed(0)}
+function htmlUpdateLeftRawTorque() {document.getElementById("left-raw-torque").textContent = measures.left_side.rawTorque.toFixed(0)}
 
 function htmlUpdateRotationParameters() {
-    document.getElementById("right-net-torque").textContent = measures.right_side.netTorque.toFixed(2);
-    document.getElementById("left-net-torque").textContent = measures.left_side.netTorque.toFixed(2);
+    document.getElementById("right-net-torque").textContent = measures.right_side.netTorque.toFixed(0);
+    document.getElementById("left-net-torque").textContent = measures.left_side.netTorque.toFixed(0);
 
 
     document.getElementById("angle").textContent = measures.angle.toFixed(2);
@@ -154,6 +152,80 @@ function htmlUpdateRotationParameters() {
 function htmlUpdateNextWeight(){document.getElementById("next-weight").textContent = balls[balls.length-1].weight;}
 
 
+// update the arrow sign in html
+function htmlUpdateRotationIndicator() {
+    const indicator = document.getElementById('rotation-indicator');
+    
+    if(measures.angularAcceleration > 0 || measures.angularAcceleration < 0) {
+        // show the motion
+        indicator.classList.add('visible');
+        
+        if (measures.angularAcceleration > 0) {
+            // turn right
+            indicator.classList.remove('rotating-left');
+            indicator.classList.add('rotating-right');
+        } else {
+            // turn left
+            indicator.classList.remove('rotating-right');
+            indicator.classList.add('rotating-left');
+        }
+    } else {
+        // motionless (hide)
+        indicator.classList.remove('visible', 'rotating-left', 'rotating-right');
+    }
+}
+
+
+
+
+let audioContext = null;
+
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+//generate sound with intensity proportionate to the weight
+function playImpactSound(weight) {
+    try {
+        const ctx = getAudioContext();
+        
+        
+        const intensity = (weight**3) / 10; // between 0 and 1
+        
+        // Oscillator (tone generator)
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        // Creaet connection
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        // frequence: heavy = low frequence, light objects = high frequence
+        const baseFrequency = 150 - (weight * 10); // 50-140 Hz
+        oscillator.frequency.setValueAtTime(baseFrequency, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+            baseFrequency * 0.5, 
+            ctx.currentTime + 0.1
+        );
+        
+        oscillator.type = 'triangle';
+        
+        const volume = 0.2 + (intensity * 0.3); // 0.2 - 0.5 arası
+        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+        
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.15);
+        
+    } catch (e) {
+        console.warn('Audio playback failed:', e);
+    }
+}
+///////////////////////////////////////////////////////////////////////////////
 
 
 //p prefix means percentage, instead of raw pixels
@@ -358,6 +430,7 @@ function startFalling(ball, loadedFallSpeed) {
         draw();
 
         if (e.data.done) {   // the moment ball has fallen and touches the plank
+            playImpactSound(ball.weight);
 
             ball.d = distanceToCenterFromBallTouchPoint(ball.x, ball.y, ball.r);  //d is negative if ball is on the left arm of plank
             ball.falling = false;   //ball falled
@@ -406,14 +479,10 @@ function updateTorque(ball) {
     //start rotating
 }
 
-
-
 let rotationThread;
 function startRotation(loadedAngularVelocity) {
-    console.log("girdim")
 
     rotationThread = new Worker('rotationThread.js');
-    console.log("threade başlıyorum:", balls, loadedAngularVelocity, rotationThread)
     rotationThread.postMessage({
         measures: measures,
         balls: balls.slice(0, -1),
@@ -426,7 +495,7 @@ function startRotation(loadedAngularVelocity) {
         measures.angle = e.data.angle; // update ball position
         measures.angularAcceleration = e.data.angularAcceleration
         measures.angularVelocity = e.data.angularVelocity
-    
+        
         //update already dropped balls positions
         for(let i = 0; i < balls.length-1; i++) {   
             if(!balls[i].falling) 
@@ -445,6 +514,7 @@ function startRotation(loadedAngularVelocity) {
         if(e.data.finished) {
             terminateRotationThread();
   
+            htmlUpdateRotationIndicator()
             //angular velocity and acceleration becomes 0
             measures.angularVelocity = 0;
             measures.angularAcceleration = 0;
@@ -453,13 +523,17 @@ function startRotation(loadedAngularVelocity) {
         updateNetTorque();  // update net tork values of right and left sde when angle is updated
         htmlUpdateRotationParameters();
 
+        htmlUpdateRotationIndicator()
+
         draw();             
     };
 }
 
 function terminateRotationThread() {
-    rotationThread.terminate() //finish thread
-    rotationThread = null;
+    if(rotationThread) {
+        rotationThread.terminate() //finish thread
+        rotationThread = null;
+    }
 }
 
 function terminateFallingThreads() {
@@ -470,7 +544,6 @@ function terminateFallingThreads() {
 }
 
 
-console.log(balls)
 // ball on mouse cursor
 canvas.addEventListener('mousemove', (event) => {
 
@@ -507,18 +580,6 @@ canvas.addEventListener('click', (event) => {
 });
 
 
-
-
-/*
-ctx.fillStyle = 'black';
-ctx.font = '20px Arial';
-ctx.fillText('Test text!', 200, 100);
-*/
-
-// Clear canvas (wipe everything)
-//ctx.clearRect(50, 50, canvas.width, canvas.height);
-
-
 function saveStateToLocalStorage() {
     const state = {
         balls: balls,
@@ -535,7 +596,6 @@ function loadStateFromLocalStorage() {
         balls = state.balls || [];
         measures = state.measures || measures;
         isPaused = state.isPaused;
-        console.log("pas:" , isPaused)
 
         // Updat UI
         htmlUpdateLeftWeight();
@@ -543,8 +603,7 @@ function loadStateFromLocalStorage() {
         htmlUpdateLeftRawTorque();
         htmlUpdateRightRawTorque();
         htmlUpdateRotationParameters();
-
-//pauseSimulation
+        htmlUpdateNextWeight()
         //continue the therads from where they were left
         if(!isPaused) {
             let loadedAngularVelocity = measures.angularVelocity

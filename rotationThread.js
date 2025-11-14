@@ -34,7 +34,6 @@ function updateTargetAngle(netRawTorque) {   //the part except cos(angle)
 
 onmessage = function(e) {
     // Check if it's an update message or start message
-    console.log("baslıyok")
 
     if (e.data.type === 'update') {
         balls = e.data.balls;
@@ -52,7 +51,6 @@ onmessage = function(e) {
 
         //if loaded saved state, continue from last velocity
         if(e.data.loadedAngularVelocity) angularVelocity = e.data.loadedAngularVelocity
-        console.log("başladık tekrardan: ", e.data.loadedAngularVelocity, angularVelocity)
 
         loop();
     }

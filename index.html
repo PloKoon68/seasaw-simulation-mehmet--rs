@@ -7,71 +7,73 @@
 </head>
 <body>
     <div class="main-container">
-        <h1 style="font-size: 30px;"> Seesaw Physics Simulator </h1>
 
-        <div class="top-indicators">
-            <div class="top-indicator"> 
-                <span>Angle</span>
-                <span id="angle">0</span>
-            </div>
-            <div class="top-indicator"> 
-                <span>Angular Velocity</span>
-                <span id="angular-velocity">0</span>
-            </div>
-            <div class="top-indicator"> 
-                <span>Angular Acceleration</span>
-                <span id="angular-acceleration">0</span>
-            </div>
-            <div class="top-indicator"> 
-                <span>Next Weight</span>
-                <span id="next-weight">0</span>
-            </div>
-        </div>
+        <div class="content-wrapper">
 
+            <div class="main-part">
+                <div class="top-indicators">
+                    <div class="top-indicator"> 
+                        <span>Angle</span>
+                        <span id="angle">0</span>
+                    </div>
+                    <div class="top-indicator"> 
+                        <span>Angular Velocity</span>
+                        <span id="angular-velocity">0</span>
+                    </div>
+                    <div class="top-indicator"> 
+                        <span>Angular Acceleration</span>
+                        <span id="angular-acceleration">0</span>
+                    </div>
+                    <div class="top-indicator"> 
+                        <span>Next Weight</span>
+                        <span id="next-weight">0</span>
+                    </div>
+                </div>
 
+                <div class="indicators-and-canvas-wrapper">
+                    <div class="side-indicator-external left">
+                        <div class="side-label">◀ Left Side</div>
+                        <div class="side-data"><b>Weight:</b> <span id="left-weight">0</span> kg</div>
+                        <div class="side-data"><b>Raw Torque:</b> <span id="left-raw-torque">0</span> N·px</div>
+                        <div class="side-data"><b>Net Torque:</b> <span id="left-net-torque">0</span> N·px</div>
+                    </div>
 
-
-        <div class="visual-frame">
-            <canvas id="seasawCnvs" width="500" height="500"></canvas>
-
-            <div class="side-indicator left">
-                <div><b>Left Side</b></div>
-                <div>Weight: <span id="left-weight">0</span> kg</div>
-                <div>Raw Torque: <span id="left-raw-torque">0</span> N.px</div>
-                <div>Net Torque: <span id="left-net-torque">0</span> N.px</div>
-            </div>
-            <div class="side-indicator right">
-                <div><b>Right Side</b></div>
-                <div>Weight: <span id="right-weight">0</span> kg</div>
-                <div>Raw Torque: <span id="right-raw-torque">0</span> N.px</div>
-                <div>Net Torque: <span id="right-net-torque">0</span> N.px</div>
-            </div>
-        </div>
-
-
+                    <div class="visual-frame">
+                        <div class="rotation-indicator" id="rotation-indicator">
+                            <svg width="60" height="40" viewBox="0 0 60 40">
+                                <path id="arrow-path" d="M 10 20 L 40 20 L 35 15 M 40 20 L 35 25" 
+                                    fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <canvas id="seasawCnvs" width="500" height="500"></canvas>
+                    </div>
 
 
-        <div class="button-block">
-            <button class="buttons reset-button" id="reset-button" > Reset </button>
-            <button class="buttons pause-button" id="pause-button" > Pause </button>
-        </div>
+                    <div class="side-indicator-external right">
+                        <div class="side-label">Right Side ▶</div>
+                        <div class="side-data"><b>Weight:</b> <span id="right-weight"> 0</span> kg</div>
+                        <div class="side-data"><b>Raw Torque:</b> <span id="right-raw-torque"> 0</span> N·px</div>
+                        <div class="side-data"><b>Net Torque:</b> <span id="right-net-torque"> 0</span> N·px</div>
+                    </div>
+
+                </div>
+
+                
+                <div class="button-block" style="margin: 13px auto;">
+                    <button class="buttons reset-button" id="reset-button" > Reset </button>
+                    <button class="buttons pause-button" id="pause-button" > Pause </button>
+                </div>
         
-        <div class="logs-panel">
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
+
+            </div>
+
+
+            <div class="logs-panel">
+
+            <br>
+            </div>
         </div>
+
     </div>
 
 
