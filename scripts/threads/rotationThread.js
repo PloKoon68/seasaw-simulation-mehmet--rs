@@ -7,6 +7,8 @@ let balls;
 const gravityAcceleration = 10; //gravity acceleration 
 const loopPeriod = 20;
 
+let terminate = false
+
 function calculateConstantCoefficient(netRawTorque) { 
     let nominator = netRawTorque  //τnet​=right∑​(ri)​.(mi)​.g.cos(θ)−left∑​(ri).(​mi).​g.cos(θ)
                                   //since teta angle will change in time, it is a variable that will be pass in the main loop evey in every step
@@ -54,6 +56,11 @@ onmessage = function(e) {
 
         loop();
     }
+    else if (e.data.type === 'terminate') {
+        console.log("term")
+        terminate = true;
+        
+    }
 };
 
 async function wait(ms) {
@@ -64,6 +71,7 @@ async function loop() {
     let finished = false;
 
     while (!finished) {
+        console.log("td became: ", terminate)
         if(Math.abs(angle) > 30) {
             angularAcceleration = 0;
             angularVelocity = 0;
