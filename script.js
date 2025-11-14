@@ -455,9 +455,8 @@ function updateDroppedBallPositionY(ball, angle) {    // called for each ball wh
 function horizontalDistanceToPivot(ball) {
     const radian = measures.angle * Math.PI / 180;
 
-    const dInPixel = percentage_to_px(ball.d)
+    const dInPixel = percentage_to_px(ball.d)  //convert to pixel
 
-//    return dInPixel * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)    previous version
     return dInPixel * Math.cos(radian) + Math.sin(radian) * (PLANK_WIDTH/2 + ball.r)
 }
 
