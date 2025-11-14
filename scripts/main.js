@@ -4,13 +4,15 @@ import { draw } from './drawing.js';
 import { updateDroppedBallPositionY, updateNetTorque, calculateBalltargetY, horizontalDistanceToPivot, updateFallingBallTarget } from './physics.js';
 import { htmlUpdateLeftWeight, htmlUpdateRightWeight, htmlUpdateLeftRawTorque, htmlUpdateRightRawTorque, htmlUpdateRotationParameters, htmlUpdateNextWeight, htmlUpdateRotationIndicator  } from './ui_updates.js';
 import { saveStateToLocalStorage, loadStateFromLocalStorage, resetSeesaw, randomDarkColor } from './state.js';
-import { startFalling, terminateFallingThreads, terminateRotationThread } from './threads/threadOperations.js';
+import { startFalling } from './threads/threadOperations.js';
 import { continueSimulation, pauseSimulation  } from './actions.js';
 
  
 //set functions so other files functions can mutate them
 export function setMeasures(newMeasures) {
+    console.log("sıfırlıtyo: ", newMeasures.angle, measures.angle)
     measures = newMeasures;
+    console.log("sıfırladık: ", measures.angle)
 }
 
 export function setIsPaused(value) {
@@ -28,9 +30,6 @@ export function setRotationThread(newThread) {
 export function setBallCount(newBallCount) {
     ballCount = newBallCount;
 }
-
-
-
 
 
 export const canvas = document.getElementById('seasawCnvs');  //main canvas element

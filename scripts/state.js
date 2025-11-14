@@ -1,11 +1,12 @@
 import { LENGTH, ctx, PLANK_LENGTH, PLANK_WIDTH, balls, HEIGHT, isPaused , measures, setMeasures, setBalls, setIsPaused, ballCount, setBallCount } from './main.js';
 import { htmlUpdateLeftWeight, htmlUpdateRightWeight, htmlUpdateLeftRawTorque, htmlUpdateRightRawTorque, htmlUpdateRotationParameters, htmlUpdateNextWeight    } from './ui_updates.js';
 import { startRotation, terminateFallingThreads, terminateRotationThread  } from './threads/threadOperations.js';
-import { continueSimulation   } from './actions.js';
+import { continueSimulation, pauseSimulation, logsList } from './actions.js';
 import { draw } from './drawing.js';
 
  
 export function saveStateToLocalStorage() {
+    console.log("kaydedioy")
     const state = {
         balls: balls,
         measures: measures,
@@ -81,26 +82,27 @@ function loadLogs(logsList) {
 
 
 export function resetSeesaw() {
-    setIsPaused(false);
-    continueSimulation()
+    if(isPaused) {
+        continueSimulation()
+        setIsPaused(false);
+    }
+    
+    // Stop all threads
+    localStorage.clear();
 
     // clean Localstorage
     terminateFallingThreads()
     terminateRotationThread()
     // Reset balls and measuers
     setBalls([]);
-    setMeasures({
+    let newMeasures = {
         left_side: {weight: 0, rawTorque: 0, netTorque: 0},
         right_side: {weight: 0, rawTorque: 0, netTorque: 0},
         angle: 0,
         angularAcceleration: 0,
         angularVelocity: 0
-    })
-
-    // Stop all threads
-    localStorage.clear();
-
-
+    }
+    setMeasures(newMeasures)
     // New initial ball
     const initialWeight = Math.floor(Math.random() * 10) + 1;
     const initialRadius = 4 + initialWeight / 3;
@@ -131,6 +133,7 @@ export function resetSeesaw() {
     htmlUpdateRotationParameters();
 
     document.querySelector('.logs-panel').innerHTML = '';
+
     draw();
 }
 

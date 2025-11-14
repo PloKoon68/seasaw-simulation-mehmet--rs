@@ -11,7 +11,6 @@ export function calculateBalltargetY(ball, angle) {    // called for each ball w
 export function updateFallingBallTarget(ball) {
     const thread = fallThreads.get(ball.id);
     if (thread) {
-        console.log("th")
         thread.postMessage({
             type: 'update',
             targetY: ball.targetY

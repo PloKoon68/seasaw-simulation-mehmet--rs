@@ -57,7 +57,6 @@ onmessage = function(e) {
         loop();
     }
     else if (e.data.type === 'terminate') {
-        console.log("term")
         terminate = true;
         
     }
@@ -71,7 +70,6 @@ async function loop() {
     let finished = false;
 
     while (!finished) {
-        console.log("td became: ", terminate)
         if(Math.abs(angle) > 30) {
             angularAcceleration = 0;
             angularVelocity = 0;

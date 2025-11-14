@@ -80,7 +80,6 @@ export function updateTorque(ball) {
 
 
 export function startRotation(loadedAngularVelocity) {
-
     setRotationThread(new Worker('scripts/threads/rotationThread.js'));
     rotationThread.postMessage({
         measures: measures,
@@ -129,15 +128,9 @@ export function startRotation(loadedAngularVelocity) {
 }
 
 export function terminateRotationThread() {
-    console.log("gde")
     if (rotationThread) {
-        rotationThread.postMessage({ type: 'terminate' });   // sadece mesaj gönder
-
-        // Worker’ın düzgün kapanması için küçük delay
-        setTimeout(() => {
             rotationThread.terminate();
             setRotationThread(null);
-        }, 20);   // 10–30ms yeterli
     }
 }
 
