@@ -49,12 +49,21 @@ Abiding the Separation of Concerns and High Cohesion principles, the codebase wa
     -   **`rotationThread.js`**: The core part of the simulation, calculating the rotational physics.
     -   **`fallThread.js`**: Manages the falling process of each weight independently, with garivity force acting on them.
 
-### 2. Physics Engine: The Role of Web Workers
+### 2. Physics Engine: The Role of Web Workers (Threads)
 
-To prevent the user interface from freezing during heavy calculations, the physics engine was completely isolated from the main thread.
+To isolate the motions of individual physical objects heavy calculations (just like in real world), the physics engine was seperated from the main thread as distinct sub-threads. 
 
--   The **`rotationThread.js`** is responsible for calculating the Net Torque and Moment of Inertia every `loopPeriod` (20ms) based on the current state of all balls. From these values, it derives the angular acceleration, updates the angular velocity, and sends the new angle back to `main.js`.
--   For physical accuracy, the torque calculation uses the **Lever Arm principle**, which accounts for the seesaw's current angle (`cos(θ)`). This results in a more realistic oscillation compared to a simpler `d * w` formula.
+-   The **`rotationThread.js`** is responsible for calculating the Angular acceleration every `loopPeriod` (20ms) based on the current Net Torque (τ_net) and Moment of Inertia (I). From this angular acceleration calculation, it updates angular velocity, and thus the new angle value, and send these back to the main thread to update the seasaw planks position, and display all these in HTML using DOM manipulation. Now as the angle updates, also the angular torque and thus, angle itself updates in the loop. This continues until the angle reaches it's max value (+30 or -30).
+-   For physical accuracy, the torque calculation uses the **Lever Arm principle**, which accounts for the seesaw's current angle (`cos(θ)`) and multiplies it with `d * w` raw torque formula.
+
+α = τ_net / I
+ **`α (Alpha): Angular Acceleration`**. This determines how quickly the seesaw's rotational speed changes would change.
+ 
+ **`τ_net (Tau_net): Net Torque`**. This is the total rotational force acting on the seesaw. It is the multiplication of (`cos(θ)`) and the difference between the raw torque from the right side and the from the left side.
+τ_net = Σ(τ_right_side) - Σ(τ_left_side)
+Σ(τ_right_side) = (`cos(θ)`) * Σ(d * w)
+**`I (Inertia): Moment of Inertia`**. This represents the system's resistance to rotational motion. The heavier the objects and the farther they are from the pivot, the greater this resistance is.
+I = Σ(massᵢ × distanceᵢ²).
 
 ### 3. Rendering: `<canvas>` vs. DOM
 
